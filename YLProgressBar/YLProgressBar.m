@@ -45,6 +45,7 @@
 @property (nonatomic, assign)               double      indeterminateOffset;
 @property (nonatomic, assign)               CGFloat     cornerRadius;
 @property (nonatomic, SAFE_ARC_PROP_RETAIN) NSTimer*    animationTimer;
+@property (nonatomic, assign)               CGFloat     stripesAlpha;
 
 /** Init the progress bar. */
 - (void)initializeProgressBar;
@@ -100,7 +101,7 @@
 - (void)drawRect:(CGRect)rect
 {
     // Refresh the corner radius value
-    self.cornerRadius   = rect.size.height / 2;
+    self.cornerRadius = self.isRound ? rect.size.height / 2 : 0;
     
     // Draw the background track
     [self drawBackgroundWithRect:rect];
@@ -155,10 +156,7 @@
     SAFE_ARC_RELEASE(_progressTintColor);
     _progressTintColor = SAFE_ARC_RETAIN(aProgressTintColor);
     const CGFloat* components = CGColorGetComponents(_progressTintColor.CGColor);
-    _progressTintColorDark = SAFE_ARC_RETAIN([UIColor colorWithRed:components[0] / 4.0f
-                                                             green:components[1] / 4.0f
-                                                              blue:components[2] / 4.0f
-                                                             alpha:CGColorGetAlpha(_progressTintColor.CGColor)]);
+    _progressTintColorDark = self.usesGradient ? SAFE_ARC_RETAIN([UIColor colorWithRed:components[0] / 4.0f green:components[1] / 4.0f blue:components[2] / 4.0f alpha:CGColorGetAlpha(_progressTintColor.CGColor)]) : _progressTintColor;
 }
 
 - (UIColor*)progressTintColor
@@ -179,10 +177,24 @@
     [self setupTimer];
 }
 
-- (void)setIndeterminate:(BOOL) _indeterminate 
+- (void)setIndeterminate:(BOOL) _indeterminate
 {
     indeterminate = _indeterminate;
     [self setupTimer];
+}
+
+- (void)setShowsStripes:(BOOL) _showsStripes
+{
+    if (_showsStripes) {
+        self.stripesAlpha = 0.28;
+    } else {
+        self.stripesAlpha = 0;
+    }
+}
+
+- (void)setUsesGradient:(BOOL)usesGradient {
+    _usesGradient = usesGradient;
+    [self setProgressTintColor:[self progressTintColor]];
 }
 
 #pragma mark YLProgressBar Private Methods
@@ -193,6 +205,9 @@
     self.indeterminateOffset = 0;
     self.animationTimer     = nil;
     self.animated           = YES;
+    self.stripesAlpha       = 0.28;
+    self.isRound            = YES;
+    self.usesGradient       = YES;
 }
 
 - (void)setupTimer {
@@ -200,7 +215,7 @@
     {
         if (self.animationTimer == nil)
         {
-            self.animationTimer = [NSTimer scheduledTimerWithTimeInterval:1.0/30 
+            self.animationTimer = [NSTimer scheduledTimerWithTimeInterval:1.0/30
                                                                    target:self 
                                                                  selector:@selector(setNeedsDisplay)
                                                                  userInfo:nil
@@ -280,15 +295,15 @@
 
 //        size_t num_locations            = 2;
         CGFloat locations[]             = {0.0, 1.0};
-        CFArrayRef colors = (CFArrayRef) [NSArray arrayWithObjects:(id)_progressTintColorDark.CGColor,
+        CFArrayRef colors = ( CFArrayRef) [NSArray arrayWithObjects:(id)_progressTintColorDark.CGColor,
                                           (id)self.progressTintColor.CGColor, 
                                           nil];
         
-        CGGradientRef gradient          = CGGradientCreateWithColors (colorSpace, colors, locations);
+            CGGradientRef gradient          = CGGradientCreateWithColors (colorSpace, colors, locations);
         
-        CGContextDrawLinearGradient(context, gradient, CGPointMake(rect.origin.x, rect.origin.y), CGPointMake(rect.origin.x + rect.size.width, rect.origin.y), (kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation));
+            CGContextDrawLinearGradient(context, gradient, CGPointMake(rect.origin.x, rect.origin.y), CGPointMake(rect.origin.x + rect.size.width, rect.origin.y), (kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation));
         
-        CGGradientRelease(gradient);
+            CGGradientRelease(gradient);
     }
     CGContextRestoreGState(context);
     
@@ -388,7 +403,7 @@
             CGContextAddPath(context, [allStripes CGPath]);
             CGContextClip(context);
             
-            const CGFloat stripesColorComponents[] = { 0.0f, 0.0f, 0.0f, 0.28f };
+            const CGFloat stripesColorComponents[] = { 0.0f, 0.0f, 0.0f, self.stripesAlpha };
             CGColorRef stripesColor = CGColorCreate(colorSpace, stripesColorComponents);
             
             CGContextSetFillColorWithColor(context, stripesColor);
